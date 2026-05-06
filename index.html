@@ -279,6 +279,16 @@
             <label for="destEmail" style="margin-top: 10px;">Destination Email</label>
             <input type="email" id="destEmail" placeholder="Enter email id">
             
+            <div style="margin-top: 15px; display: flex; align-items: center; gap: 10px; width: 100%; justify-content: flex-start; max-width: 600px;">
+                <input type="checkbox" id="enableFilter" style="width: 20px; height: 20px; cursor: pointer;">
+                <label for="enableFilter" style="text-transform: none; color: var(--text-main); font-weight: normal; cursor: pointer;">Filter the Jobs with keywords</label>
+            </div>
+
+            <div id="filterContainer" style="display: none; width: 100%; flex-direction: column; gap: 10px;">
+                <label for="titleFilter" style="margin-top: 10px; color: #ffeb3b;">Title Filter (Only send if Title contains these - e.g. Java, Python)</label>
+                <input type="text" id="titleFilter" placeholder="e.g. Java, Python" style="border-color: #ffeb3b; border-radius: 30px;">
+            </div>
+            
             <div style="margin-top: 15px; display: flex; gap: 10px; width: 100%; justify-content: center;">
                 <button type="button" id="saveBtn" class="btn-action btn-save">Save</button>
                 <button type="button" id="cancelBtn" class="btn-action btn-cancel">Cancel</button>
@@ -308,20 +318,37 @@
                 .then(data => {
                     if (data.savedKeywords) document.getElementById('keywordSearch').value = data.savedKeywords;
                     if (data.savedEmail) document.getElementById('destEmail').value = data.savedEmail;
+                    if (data.titleFilters) {
+                        document.getElementById('titleFilter').value = data.titleFilters;
+                        document.getElementById('enableFilter').checked = true;
+                        document.getElementById('filterContainer').style.display = 'flex';
+                    }
                 })
                 .catch(err => console.error("Error loading settings:", err));
         };
+
+        // Toggle Filter Visibility
+        document.getElementById('enableFilter').addEventListener('change', (e) => {
+            const container = document.getElementById('filterContainer');
+            container.style.display = e.target.checked ? 'flex' : 'none';
+        });
 
         // Save Button Event
         document.getElementById('saveBtn').addEventListener('click', () => {
             const keywords = document.getElementById('keywordSearch').value;
             const email = document.getElementById('destEmail').value;
+            const isFilterEnabled = document.getElementById('enableFilter').checked;
+            const filters = isFilterEnabled ? document.getElementById('titleFilter').value : "";
             
             fetch('/api/save_settings', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ savedKeywords: keywords, savedEmail: email })
-            }).then(() => alert('Settings saved to Local App Data!'))
+                body: JSON.stringify({ 
+                    savedKeywords: keywords, 
+                    savedEmail: email,
+                    titleFilters: filters
+                })
+            }).then(() => alert('Settings saved!'))
               .catch(err => console.error("Error saving settings:", err));
         });
 
@@ -329,6 +356,9 @@
         document.getElementById('cancelBtn').addEventListener('click', () => {
             document.getElementById('keywordSearch').value = '';
             document.getElementById('destEmail').value = '';
+            document.getElementById('titleFilter').value = '';
+            document.getElementById('enableFilter').checked = false;
+            document.getElementById('filterContainer').style.display = 'none';
             filterJobs();
         });
 

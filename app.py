@@ -11,6 +11,7 @@ from email.message import EmailMessage
 from flask import Flask, redirect, request, session, url_for, send_file
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
+from filter import should_keep_job
 
 # Flask App setup
 app = Flask(__name__, template_folder='.')
@@ -305,6 +306,7 @@ def scrape_dice():
                 settings = json.load(f)
                 keywords = settings.get('savedKeywords', '')
                 destination_email = settings.get('savedEmail', '').strip()
+                title_filters = settings.get('titleFilters', '').strip()
                 if keywords:
                     roles = [k.strip() for k in keywords.split(',') if k.strip()]
         except Exception as e:
@@ -373,6 +375,12 @@ def scrape_dice():
                     break
                     
                 job_url = job_info['job_url']
+                job_title = job_info['title']
+
+                # Check Title Filter BEFORE fetching details to save time
+                if not should_keep_job(job_title, title_filters):
+                    print(f"  [SKIPPED] Title does not match filters: {job_title}")
+                    continue
                 
                 jd_text, emails, employment_type, date_posted_utc = fetch_job_details(job_url)
                 
