@@ -159,6 +159,13 @@ def get_valid_credentials():
     try:
         with open(TOKENS_FILE, 'r') as f:
             creds_data = json.load(f)
+
+        if not creds_data.get('refresh_token'):
+            print("No refresh token found. Please login again.")
+            return None
+
+        # Always force a fresh access token using the refresh token
+        # This avoids the issue where expiry is not stored and creds.valid is always True
         creds = Credentials(
             token=creds_data['token'],
             refresh_token=creds_data['refresh_token'],
@@ -167,15 +174,17 @@ def get_valid_credentials():
             client_secret=creds_data['client_secret'],
             scopes=creds_data['scopes']
         )
-        if creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-            creds_data['token'] = creds.token
-            with open(TOKENS_FILE, 'w') as f:
-                json.dump(creds_data, f)
+        print("Refreshing access token...")
+        creds.refresh(Request())
+        # Save the newly refreshed token back
+        creds_data['token'] = creds.token
+        with open(TOKENS_FILE, 'w') as f:
+            json.dump(creds_data, f)
         return creds
     except Exception as e:
         print("Error loading/refreshing credentials:", e)
         return None
+
 
 def send_gmail(creds, to_email, reply_to, subject, body_text):
     msg = EmailMessage()
@@ -195,6 +204,8 @@ def send_gmail(creds, to_email, reply_to, subject, body_text):
         headers=headers,
         json={'raw': raw}
     )
+    if response.status_code != 200:
+        print(f"  [GMAIL ERROR] Status: {response.status_code}, Message: {response.text}")
     return response.status_code == 200
 
 def load_sent_emails():
@@ -303,10 +314,7 @@ def scrape_dice():
         print("No keywords found in settings. Please enter keywords in the UI and save.")
         is_scraping = False
         return
-        
-    creds = get_valid_credentials()
-    if not creds:
-        print("Warning: No valid Google login found. Emails will NOT be sent.")
+            
     if not destination_email:
         print("Warning: No Destination Email found in settings. Emails will NOT be sent.")
         
@@ -334,7 +342,7 @@ def scrape_dice():
         seen_urls = set()
         
         while has_more_pages and is_scraping:
-            search_url = f"https://www.dice.com/jobs?filters.postedDate=THREE&filters.employmentType=CONTRACTS&q={encoded_role}&radiusUnit=mi&page={page}&pageSize=100&sort=date"
+            search_url = f"https://www.dice.com/jobs?filters.postedDate=ONE&filters.employmentType=CONTRACTS&q={encoded_role}&radiusUnit=mi&page={page}&pageSize=100&sort=date"
             
             response = requests.get(search_url, headers=headers)
             if response.status_code != 200:
@@ -397,7 +405,13 @@ def scrape_dice():
                     json.dump(all_jobs, f, indent=4)
                     
                 # Send Email functionality
-                if creds and destination_email and job_url not in sent_emails_set:
+                if destination_email and job_url not in sent_emails_set:
+                    # Get fresh credentials inside the loop
+                    creds = get_valid_credentials()
+                    if not creds:
+                        print(f"  [EMAIL FAILED] No valid Google login. Please login again.")
+                        continue
+                        
                     subject = f"{{DICE}} Role/Tech : {job_info['title']}"
                     body = f"Date Posted : {est_datetime}\nJob Type : {employment_type}\nJob URL : {job_url}\nEmail id : {', '.join(emails)}\n\nTOTAL JD : \n{jd_text}"
                     reply_to = emails[0] if emails else None
