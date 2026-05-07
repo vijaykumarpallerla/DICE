@@ -306,7 +306,8 @@ def scrape_dice():
                 settings = json.load(f)
                 keywords = settings.get('savedKeywords', '')
                 destination_email = settings.get('savedEmail', '').strip()
-                title_filters = settings.get('titleFilters', '').strip()
+                is_filter_enabled = settings.get('isFilterEnabled', False)
+                title_filters = settings.get('titleFilters', '').strip() if is_filter_enabled else ""
                 if keywords:
                     roles = [k.strip() for k in keywords.split(',') if k.strip()]
         except Exception as e:

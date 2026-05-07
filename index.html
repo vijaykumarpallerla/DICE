@@ -318,8 +318,8 @@
                 .then(data => {
                     if (data.savedKeywords) document.getElementById('keywordSearch').value = data.savedKeywords;
                     if (data.savedEmail) document.getElementById('destEmail').value = data.savedEmail;
-                    if (data.titleFilters) {
-                        document.getElementById('titleFilter').value = data.titleFilters;
+                    if (data.titleFilters) document.getElementById('titleFilter').value = data.titleFilters;
+                    if (data.isFilterEnabled) {
                         document.getElementById('enableFilter').checked = true;
                         document.getElementById('filterContainer').style.display = 'flex';
                     }
@@ -338,7 +338,7 @@
             const keywords = document.getElementById('keywordSearch').value;
             const email = document.getElementById('destEmail').value;
             const isFilterEnabled = document.getElementById('enableFilter').checked;
-            const filters = isFilterEnabled ? document.getElementById('titleFilter').value : "";
+            const filters = document.getElementById('titleFilter').value;
             
             fetch('/api/save_settings', {
                 method: 'POST',
@@ -346,7 +346,8 @@
                 body: JSON.stringify({ 
                     savedKeywords: keywords, 
                     savedEmail: email,
-                    titleFilters: filters
+                    titleFilters: filters,
+                    isFilterEnabled: isFilterEnabled
                 })
             }).then(() => alert('Settings saved!'))
               .catch(err => console.error("Error saving settings:", err));
