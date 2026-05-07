@@ -19,7 +19,8 @@ app.secret_key = os.urandom(24)
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1'
 
-CLIENT_SECRETS_FILE = "google.json"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+CLIENT_SECRETS_FILE = os.path.join(BASE_DIR, "google.json")
 SCOPES = ['openid', 'https://www.googleapis.com/auth/userinfo.email', 'https://mail.google.com/']
 
 LOCAL_APP_DATA = os.getenv('LOCALAPPDATA', os.path.expanduser('~\\AppData\\Local'))
