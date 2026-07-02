@@ -1,3 +1,6 @@
 google.json
 Jobs.json
 __pycache__/
+dist
+web_dice.spec
+build

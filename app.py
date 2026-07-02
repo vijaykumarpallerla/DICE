@@ -19,7 +19,11 @@ app.secret_key = os.urandom(24)
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1'
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+import sys
+if getattr(sys, 'frozen', False):
+    BASE_DIR = sys._MEIPASS
+else:
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CLIENT_SECRETS_FILE = os.path.join(BASE_DIR, "google.json")
 SCOPES = ['openid', 'https://www.googleapis.com/auth/userinfo.email', 'https://mail.google.com/']
 
@@ -42,7 +46,7 @@ def home():
                 return redirect(url_for('dashboard'))
             except:
                 pass
-        return send_file('login.html')
+        return send_file(os.path.join(BASE_DIR, 'login.html'))
     return redirect(url_for('dashboard'))
 
 @app.route('/login')
@@ -95,7 +99,7 @@ def oauth2callback():
 def dashboard():
     if 'credentials' not in session:
         return redirect(url_for('home'))
-    return send_file('index.html')
+    return send_file(os.path.join(BASE_DIR, 'index.html'))
 
 @app.route('/logout')
 def logout():
@@ -110,6 +114,9 @@ def logout():
 @app.route('/api/save_settings', methods=['POST'])
 def save_settings():
     data = request.json
+    email = data.get('savedEmail', '').strip().lower()
+    if email and not email.endswith('@srimatech.com'):
+        return {"status": "error", "message": "Only destination email IDs ending with @srimatech.com are allowed."}, 400
     with open(SETTINGS_FILE, 'w') as f:
         json.dump(data, f)
     return {"status": "success"}
@@ -126,7 +133,14 @@ def get_settings():
 
 @app.route('/Jobs.json')
 def jobs_json():
-    return send_file('Jobs.json')
+    jobs_path = os.path.abspath('Jobs.json')
+    if not os.path.exists(jobs_path):
+        try:
+            with open(jobs_path, 'w', encoding='utf-8') as f:
+                json.dump([], f)
+        except Exception as e:
+            print("Error creating Jobs.json:", e)
+    return send_file(jobs_path)
 
 import threading
 
@@ -321,6 +335,9 @@ def scrape_dice():
             
     if not destination_email:
         print("Warning: No Destination Email found in settings. Emails will NOT be sent.")
+    elif not destination_email.lower().endswith('@srimatech.com'):
+        print(f"Warning: Destination Email ({destination_email}) does not end with @srimatech.com. Emails will NOT be sent.")
+        destination_email = ""
         
     sent_emails_set = load_sent_emails()
     
@@ -411,7 +428,7 @@ def scrape_dice():
                 all_jobs.append(job_data)
                 
                 # Save to JSON incrementally
-                with open("Jobs.json", "w", encoding="utf-8") as f:
+                with open(os.path.abspath("Jobs.json"), "w", encoding="utf-8") as f:
                     json.dump(all_jobs, f, indent=4)
                     
                 # Send Email functionality
@@ -446,6 +463,16 @@ def scrape_dice():
     print(f"\nScraping complete. Saved {len(all_jobs)} valid jobs to Jobs.json.")
 
 if __name__ == "__main__":
+    import webbrowser
+    from threading import Timer
+
+    def open_browser():
+        webbrowser.open_new("http://127.0.0.1:5000")
+
+    # Only open browser once (prevent opening on reloader restart)
+    if not os.environ.get('WERKZEUG_RUN_MAIN'):
+        Timer(1.5, open_browser).start()
+
     print("Starting Flask server on http://localhost:5000")
     print("If you haven't yet, make sure to run: pip install flask google-auth-oauthlib requests")
     app.run(debug=True, port=5000)

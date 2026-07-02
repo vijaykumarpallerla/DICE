@@ -277,7 +277,7 @@
             <input type="text" id="keywordSearch" placeholder="e.g. React, Spring Boot, Remote" oninput="filterJobs()">
 
             <label for="destEmail" style="margin-top: 10px;">Destination Email</label>
-            <input type="email" id="destEmail" placeholder="Enter email id">
+            <input type="email" id="destEmail" placeholder="Enter email id" required>
             
             <div style="margin-top: 15px; display: flex; align-items: center; gap: 10px; width: 100%; justify-content: flex-start; max-width: 600px;">
                 <input type="checkbox" id="enableFilter" style="width: 20px; height: 20px; cursor: pointer;">
@@ -333,12 +333,31 @@
             container.style.display = e.target.checked ? 'flex' : 'none';
         });
 
+        // Destination Email blur check
+        document.getElementById('destEmail').addEventListener('blur', (e) => {
+            const email = e.target.value.trim();
+            if (email && !email.toLowerCase().endsWith('@srimatech.com')) {
+                e.target.value = '';
+            }
+        });
+
         // Save Button Event
         document.getElementById('saveBtn').addEventListener('click', () => {
             const keywords = document.getElementById('keywordSearch').value;
-            const email = document.getElementById('destEmail').value;
+            const emailInput = document.getElementById('destEmail');
+            const email = emailInput.value.trim();
             const isFilterEnabled = document.getElementById('enableFilter').checked;
             const filters = document.getElementById('titleFilter').value;
+            
+            if (!email) {
+                emailInput.reportValidity();
+                return;
+            }
+            if (!email.toLowerCase().endsWith('@srimatech.com')) {
+                emailInput.value = '';
+                emailInput.reportValidity();
+                return;
+            }
             
             fetch('/api/save_settings', {
                 method: 'POST',
@@ -349,8 +368,16 @@
                     titleFilters: filters,
                     isFilterEnabled: isFilterEnabled
                 })
-            }).then(() => alert('Settings saved!'))
-              .catch(err => console.error("Error saving settings:", err));
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    alert('Settings saved!');
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(err => console.error("Error saving settings:", err));
         });
 
         // Cancel Button Event
