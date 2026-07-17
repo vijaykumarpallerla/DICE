@@ -215,14 +215,19 @@ def send_gmail(creds, to_email, reply_to, subject, body_text):
         'Authorization': f'Bearer {creds.token}',
         'Content-Type': 'application/json'
     }
-    response = requests.post(
-        'https://gmail.googleapis.com/gmail/v1/users/me/messages/send',
-        headers=headers,
-        json={'raw': raw}
-    )
-    if response.status_code != 200:
-        print(f"  [GMAIL ERROR] Status: {response.status_code}, Message: {response.text}")
-    return response.status_code == 200
+    try:
+        response = requests.post(
+            'https://gmail.googleapis.com/gmail/v1/users/me/messages/send',
+            headers=headers,
+            json={'raw': raw},
+            timeout=15
+        )
+        if response.status_code != 200:
+            print(f"  [GMAIL ERROR] Status: {response.status_code}, Message: {response.text}")
+        return response.status_code == 200
+    except Exception as e:
+        print(f"  [GMAIL ERROR] Network exception: {e}")
+        return False
 
 def load_sent_emails():
     if os.path.exists(SENT_EMAILS_FILE):
@@ -365,9 +370,14 @@ def scrape_dice():
         while has_more_pages and is_scraping:
             search_url = f"https://www.dice.com/jobs?filters.postedDate=ONE&filters.employmentType=CONTRACTS&q={encoded_role}&radiusUnit=mi&page={page}&pageSize=100&sort=date"
             
-            response = requests.get(search_url, headers=headers)
-            if response.status_code != 200:
-                print(f"Failed to fetch search page {page} for {role}. Status: {response.status_code}")
+            try:
+                response = requests.get(search_url, headers=headers, timeout=15)
+                if response.status_code != 200:
+                    print(f"Failed to fetch search page {page} for {role}. Status: {response.status_code}")
+                    break
+            except Exception as e:
+                print(f"Network error while fetching search page {page} for {role}: {e}")
+                time.sleep(5)  # Pause before moving to the next role
                 break
                 
             soup = BeautifulSoup(response.text, "html.parser")
