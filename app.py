@@ -349,7 +349,8 @@ def scrape_dice():
     all_jobs = []
     
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "RSC": "1"
     }
 
     today_est_date = get_est_now().strftime("%Y-%m-%d")
@@ -368,7 +369,7 @@ def scrape_dice():
         seen_urls = set()
         
         while has_more_pages and is_scraping:
-            search_url = f"https://www.dice.com/jobs?filters.postedDate=ONE&filters.employmentType=CONTRACTS&q={encoded_role}&radiusUnit=mi&page={page}&pageSize=100&sort=date"
+            search_url = f"https://www.dice.com/jobs?filters.postedDate=ONE&filters.employmentType=CONTRACTS&q={encoded_role}&radius=30&radiusUnit=mi&page={page}&pageSize=100&sort=date"
             
             try:
                 response = requests.get(search_url, headers=headers, timeout=15)
@@ -380,18 +381,18 @@ def scrape_dice():
                 time.sleep(5)  # Pause before moving to the next role
                 break
                 
-            soup = BeautifulSoup(response.text, "html.parser")
-            
             job_links = []
-            for a in soup.find_all('a', href=True):
-                href = a['href']
-                if '/job-detail/' in href:
-                    title = a.get_text(strip=True)
-                    if title and title not in ["Easy Apply", "Apply Now", "Save"]:
-                        full_url = href if href.startswith("http") else f"https://www.dice.com{href}"
-                        if full_url not in seen_urls:
-                            seen_urls.add(full_url)
-                            job_links.append({"title": title, "job_url": full_url})
+            blocks = response.text.split('"detailsPageUrl":"')
+            for i in range(1, len(blocks)):
+                block = blocks[i]
+                url_end = block.find('"')
+                if url_end != -1:
+                    job_url = block[:url_end]
+                    if "/job-detail/" in job_url and job_url not in seen_urls:
+                        seen_urls.add(job_url)
+                        title_match = re.search(r'"title":"([^"]+)"', block)
+                        title = title_match.group(1) if title_match else "Unknown Title"
+                        job_links.append({"title": title, "job_url": job_url})
                             
             if not job_links:
                 print(f"No more jobs found on page {page}. Moving to next role.")
